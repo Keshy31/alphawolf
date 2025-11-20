@@ -1,32 +1,37 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import sys
+import io
+
+# Force UTF-8 for stdout to handle emojis on Windows
+if sys.platform == 'win32':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 # 1. SETUP & ASSUMPTIONS
 # ---------------------------------------------------------
-SIMULATIONS = 50000
+SIMULATIONS = 500000
 np.random.seed(42) # for reproducibility
 
 # CURRENT MARKET DATA (The "Hard" Numbers)
-SHARES_OUTSTANDING = 12.2  # Billions
+SHARES_OUTSTANDING = 12.15  # Billions
 NET_DEBT_MEAN = 14.5       # $ Billions (H1 2025)
 NET_DEBT_STD = 0.5         # Uncertainty buffer
-TAX_RATE = 0.25            # Effective tax rate
-WACC_MARKETING = 0.10      # Discount rate for trading arm
+TAX_RATE = 0.28            # Effective tax rate
+WACC_MARKETING = 0.12      # Discount rate for trading arm
 
 # 2. RANDOMIZED INPUTS (The "Red Team" Ranges)
 # ---------------------------------------------------------
 
 # A. Marketing EBIT ($ Billions) - The Annuity
 # Range: Bear $2.2B / Base $2.9B / Bull $3.5B
-marketing_ebit = np.random.triangular(2.2, 2.9, 3.5, SIMULATIONS)
+marketing_ebit = np.random.triangular(2.2, 2.8, 3.2, SIMULATIONS)
 
 # B. Industrial EBITDA ($ Billions) - The Cyclical Engine
-# Range: Bear $12.0B (Execution Fail) / Base $15.0B / Bull $19.0B (Supercycle)
-industrial_ebitda = np.random.triangular(12.0, 15.0, 19.0, SIMULATIONS)
+industrial_ebitda = np.random.triangular(10.0, 13.0, 17.5, SIMULATIONS)
 
 # C. Valuation Multiple (EV/EBITDA) - Market Sentiment
 # Range: Bear 4.5x (Hated) / Base 5.5x (Fair) / Bull 6.5x (Loved)
-valuation_multiple = np.random.triangular(4.5, 5.5, 6.5, SIMULATIONS)
+valuation_multiple = np.random.triangular(3.2, 4.5, 6.0, SIMULATIONS)
 
 # D. USD/ZAR Exchange Rate - The Currency Risk
 # Normal Distribution: Mean 17.25, Volatility implied by recent moves
@@ -70,3 +75,32 @@ print(f"P10 (Bear Case):      R{p10:.2f}  (Downside Floor)")
 print(f"P50 (Base Case):      R{p50:.2f}  (Expected Value)")
 print(f"P90 (Bull Case):      R{p90:.2f}  (Upside Potential)")
 print(f"Probability of Profit: {prob_profit:.1f}%")
+
+# 5. VISUALIZE DISTRIBUTION
+# ---------------------------------------------------------
+plt.figure(figsize=(12, 6))
+plt.hist(share_price_zar, bins=50, color='skyblue', alpha=0.7, edgecolor='black', density=True)
+
+# Add vertical lines
+plt.axvline(current_price, color='red', linestyle='--', linewidth=2, label=f'Current Price: R{current_price:.2f}')
+plt.axvline(p10, color='orange', linestyle=':', linewidth=2, label=f'P10 (Bear): R{p10:.2f}')
+plt.axvline(p50, color='green', linestyle='-', linewidth=2, label=f'P50 (Base): R{p50:.2f}')
+plt.axvline(p90, color='purple', linestyle=':', linewidth=2, label=f'P90 (Bull): R{p90:.2f}')
+
+plt.title(f'Monte Carlo Simulation: Glencore Share Price Distribution (ZAR)\n({SIMULATIONS} Iterations)', fontsize=14)
+plt.xlabel('Share Price (ZAR)', fontsize=12)
+plt.ylabel('Probability Density', fontsize=12)
+plt.legend()
+plt.grid(True, alpha=0.3)
+
+# Add text box with summary stats
+textstr = '\n'.join((
+    f'Prob Profit: {prob_profit:.1f}%',
+    f'Mean: R{np.mean(share_price_zar):.2f}',
+    f'Std Dev: R{np.std(share_price_zar):.2f}'
+))
+props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+plt.text(0.05, 0.95, textstr, transform=plt.gca().transAxes, fontsize=10,
+        verticalalignment='top', bbox=props)
+
+plt.show()
