@@ -1,25 +1,33 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
+import sys
+import io
 
-# 🐺 ALPHAWOLF CONFIGURATION
-# -------------------------
-SIMULATIONS = 50000        # The Scale (50k paths for smooth tails)
-SEED = 2025                # Reproducibility (The Wolf's memory)
-np.random.seed(SEED)
+# 🐺 ALPHAWOLF: BOXER RETAIL (Standard DCF)
+# Target: JSE: BOX
+# Objective: Standard DCF for High-Growth Retailer
 
-# 1️⃣ LIVE DATA SNAPSHOT (Boxer Retail Ltd - JSE: BOX)
+# --- 0. SYSTEM SETUP ---
+# Force UTF-8 for stdout (Windows support)
+if sys.platform == 'win32':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+
+# The Wolf's Code: Reproducibility
+np.random.seed(42)
+SIMULATIONS = 50000
+
+# --- 1. SETTING THE SCENE (CONSTANTS) ---
 # All figures in ZAR Millions unless per share
-current_revenue = 42300.0  # FY25 Base
-net_cash = 1100.0          # Net Cash Position (Module 4)
-debt_adj = 500.0           # Debt adjustment (Conservative)
-shares_out = 457.0         # Million Shares
-spot_price = 73.42         # Current Market Price
-tax_rate = 0.27            # SA Corporate Tax
+CURRENT_REVENUE = 42300.0  # FY25 Base
+NET_CASH = 1100.0          # Net Cash Position
+DEBT_ADJ = 500.0           # Debt adjustment (Conservative)
+SHARES_OUT = 457.0         # Million Shares
+CURRENT_PRICE = 73.42      # Current Market Price
+TAX_RATE = 0.27            # SA Corporate Tax
 
-# 2️⃣ PROBABILITY FIELDS (DISTRIBUTIONS)
-# We use Triangular distributions for asymmetric risks (Skewed Downside)
-# Format: (Min, Mode, Max)
+# --- 2. INPUT DISTRIBUTIONS (THE ASSUMPTIONS) ---
 
 # A. Revenue Growth (The Rollout)
 # Bear: 8% (Saturation), Base: 13.5% (Target), Bull: 16% (Blue Sky)
@@ -30,7 +38,7 @@ growth_dist = np.random.triangular(0.08, 0.135, 0.16, SIMULATIONS)
 margin_dist = np.random.triangular(0.035, 0.048, 0.058, SIMULATIONS)
 
 # C. WACC (The Macro Risk)
-# Normal Distribution: Mean 13.2%, Std Dev 1.5% (Volatile SA Bond Yields)
+# Normal Distribution: Mean 13.2%, Std Dev 1.5%
 wacc_dist = np.random.normal(0.132, 0.015, SIMULATIONS)
 
 # D. Terminal Growth (The Long Tail)
@@ -38,29 +46,26 @@ wacc_dist = np.random.normal(0.132, 0.015, SIMULATIONS)
 term_growth_dist = np.random.uniform(0.04, 0.06, SIMULATIONS)
 
 # E. Efficiency (Sales to Capital Ratio)
-# How much revenue does R1 of capital generate? (Asset Turnover)
 sales_to_cap_dist = np.random.normal(4.5, 0.5, SIMULATIONS)
 
-# 3️⃣ THE ENGINE (VECTORIZED DCF)
-# ------------------------------
+# --- 3. THE ENGINE (VECTORIZED DCF) ---
 print(f"🐺 Running {SIMULATIONS} simulations on [JSE: BOX]...")
 
 # Initialize Arrays
 projection_years = 5
 fcf_matrix = np.zeros((SIMULATIONS, projection_years))
-revenues = np.tile(current_revenue, SIMULATIONS)
+revenues = np.tile(CURRENT_REVENUE, SIMULATIONS)
 
 # Loop through 5 years (Projecting paths)
 for year in range(projection_years):
     # Grow Revenue
     revenues = revenues * (1 + growth_dist)
     
-    # Calculate NOPAT (Net Operating Profit After Tax)
+    # Calculate NOPAT
     ebit = revenues * margin_dist
-    nopat = ebit * (1 - tax_rate)
+    nopat = ebit * (1 - TAX_RATE)
     
-    # Calculate Reinvestment (Growth / Sales-to-Capital)
-    # Reinvestment needed to fund the revenue jump
+    # Calculate Reinvestment
     rev_change = revenues - (revenues / (1 + growth_dist))
     reinvestment = rev_change / sales_to_cap_dist
     
@@ -76,50 +81,55 @@ for year in range(projection_years):
 # Sum PV of Explicit Period
 pv_explicit = np.sum(fcf_matrix, axis=1)
 
-# 4️⃣ TERMINAL VALUE CALCULATION
-# TV = [FCFF_n+1 / (WACC - g)]
+# --- 4. TERMINAL VALUE ---
 # Normalize Year 5 FCFF for steady state
-final_nopat = (revenues * margin_dist) * (1 - tax_rate)
+final_nopat = (revenues * margin_dist) * (1 - TAX_RATE)
 final_reinvestment = (final_nopat * term_growth_dist) / 0.20 # ROIC assumption for terminal
 terminal_fcff = final_nopat - final_reinvestment
 
 terminal_value = terminal_fcff / (wacc_dist - term_growth_dist)
 pv_terminal = terminal_value / ((1 + wacc_dist) ** projection_years)
 
-# 5️⃣ ENTERPRISE TO EQUITY BRIDGE
+# --- 5. ENTERPRISE TO EQUITY BRIDGE ---
 enterprise_value = pv_explicit + pv_terminal
-equity_value = enterprise_value + net_cash - debt_adj
-share_price_paths = equity_value / shares_out
+equity_value = enterprise_value + NET_CASH - DEBT_ADJ
+fair_value_per_share = equity_value / SHARES_OUT
 
-# 6️⃣ STATISTICS & ALPHA EXTRACTION
-# ------------------------------
-p10 = np.percentile(share_price_paths, 10)
-p50 = np.percentile(share_price_paths, 50)
-p90 = np.percentile(share_price_paths, 90)
-mean_val = np.mean(share_price_paths)
-prob_win = np.sum(share_price_paths > spot_price) / SIMULATIONS * 100
+# --- 6. ANALYZE THE KILL (STATISTICS) ---
+mean_val = np.mean(fair_value_per_share)
+p10 = np.percentile(fair_value_per_share, 10) # Bear
+p50 = np.median(fair_value_per_share)         # Base
+p90 = np.percentile(fair_value_per_share, 90) # Bull
+prob_profit = np.mean(fair_value_per_share > CURRENT_PRICE)
+upside_mean = (mean_val - CURRENT_PRICE) / CURRENT_PRICE
 
-# 7️⃣ REPORTING
-print("-" * 50)
-print(f"🐺 ALPHA STATE REPORT: BOXER RETAIL (BOX)")
-print("-" * 50)
-print(f"📍 Spot Price Ref:   R {spot_price:.2f}")
-print(f"📊 Mean Value:       R {mean_val:.2f}")
-print(f"📉 P10 (Bear Case):  R {p10:.2f}  (Risk of Ruin)")
-print(f"⚖️ P50 (Base Case):  R {p50:.2f}  (The Median)")
-print(f"📈 P90 (Bull Case):  R {p90:.2f}  (Blue Sky)")
-print("-" * 50)
-print(f"🎲 Probability Value > Spot: {prob_win:.1f}%")
-print("-" * 50)
+# --- 7. REPORT (STDOUT) ---
+print(f"🐺 SIMULATION REPORT [N={SIMULATIONS}]")
+print(f"Current Price: R {CURRENT_PRICE:,.2f}")
+print("-" * 30)
+print(f"Mean Fair Value:   R {mean_val:,.2f}")
+print(f"Median Fair Value: R {p50:,.2f}")
+print(f"P10 (Bear Case):   R {p10:,.2f}")
+print(f"P90 (Bull Case):   R {p90:,.2f}")
+print("-" * 30)
+print(f"PROBABILITY OF PROFIT: {prob_profit:.1%}")
+print(f"Expected Upside (Mean): {upside_mean:.1%}")
 
-# Optional: Visualization (Histogram)
-plt.figure(figsize=(10, 6))
-plt.hist(share_price_paths, bins=100, color='#1f77b4', alpha=0.7, edgecolor='black')
-plt.axvline(spot_price, color='red', linestyle='--', linewidth=2, label=f'Spot Price (R{spot_price})')
-plt.axvline(p50, color='yellow', linestyle='-', linewidth=2, label=f'Fair Value (R{p50:.0f})')
-plt.title('Thousand Paths: Boxer Retail Valuation Distribution', fontsize=14)
-plt.xlabel('Implied Share Price (ZAR)', fontsize=12)
-plt.ylabel('Frequency', fontsize=12)
+# --- 8. VISUALIZATION ---
+plt.figure(figsize=(12, 6))
+sns.histplot(fair_value_per_share, bins=100, kde=True, color='#2c3e50', stat='density', alpha=0.6)
+
+# Annotations
+plt.axvline(CURRENT_PRICE, color='red', linestyle='--', linewidth=2, label=f'Price (R{CURRENT_PRICE})')
+plt.axvline(p50, color='gold', linestyle='-', linewidth=2, label=f'Median (R{p50:.2f})')
+plt.axvline(p10, color='maroon', linestyle=':', linewidth=2, label=f'P10 Bear (R{p10:.2f})')
+plt.axvline(p90, color='green', linestyle=':', linewidth=2, label=f'P90 Bull (R{p90:.2f})')
+
+plt.title('Boxer Retail: Valuation Distribution', fontsize=16, fontweight='bold', color='#1a1a1a')
+plt.xlabel('Fair Value Per Share (ZAR)', fontsize=12)
+plt.ylabel('Probability Density', fontsize=12)
 plt.legend()
 plt.grid(axis='y', alpha=0.3)
-plt.show()
+
+# Save
+plt.savefig('val_boxer_dist.png')
