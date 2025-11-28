@@ -1,71 +1,111 @@
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import sys
 import io
 
-# 🐺 ALPHA WOLF: VALUATION TEMPLATE
-# Target: [TICKER]
-# Objective: [Objective, e.g., "SOTP Monte Carlo"]
+# 🐺 ALPHAWOLF v9 CORE ENGINE
+# ---------------------------------------------------------
+# STANDARDS:
+# 1. Reproducibility: Seed 42
+# 2. Vectorization: numpy only
+# 3. Output: Strict Regex-friendly block
+# ---------------------------------------------------------
 
 # --- 0. SYSTEM SETUP ---
-# Force UTF-8 for stdout (Windows support)
 if sys.platform == 'win32':
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
-# Set Seed for "The Wolf's Code" (Reproducibility)
 np.random.seed(42)
 SIMULATIONS = 50000
 
-# --- 1. SETTING THE SCENE (CONSTANTS) ---
-# Hard data points (Shares, Debt, Cash, Tax Rate)
-SHARES_OUT = 100.0 # Million
-CURRENT_PRICE = 50.00 # Currency
-TAX_RATE = 0.25
+# --- 1. THE HUNT PARAMETERS (USER INPUTS) ---
+# [USER: UPDATE THESE BEFORE RUNNING]
+TICKER = "XYZ"
+CURRENT_PRICE = 123.45
+SHARES_OUT = 100.0  # Million
 
-# --- 2. INPUT DISTRIBUTIONS (THE ASSUMPTIONS) ---
-# Use vectorization. No loops.
+# --- 2. THE NARRATIVE (DISTRIBUTIONS) ---
+# "Damodaran's Razor": Select the right distribution for the story.
 
-# Example: Revenue Growth (Triangular View)
-# Bear: 5%, Base: 10%, Bull: 15%
-growth_rate = np.random.triangular(0.05, 0.10, 0.15, SIMULATIONS)
+# REVENUE GROWTH (Triangular: Management Guidance)
+# Bear: 5% | Base: 10% | Bull: 15%
+growth_dist = np.random.triangular(0.05, 0.10, 0.15, SIMULATIONS)
 
-# Example: Margin (Normal Volatility)
-# Mean: 20%, StdDev: 2%
-margin = np.random.normal(0.20, 0.02, SIMULATIONS)
+# OPERATING MARGIN (Normal: Historical Volatility)
+# Mean: 20% | StdDev: 2%
+margin_dist = np.random.normal(0.20, 0.02, SIMULATIONS)
 
-# Example: Multiple (Uniform Uncertainty)
-multiple = np.random.uniform(10, 14, SIMULATIONS)
+# EXIT MULTIPLE (Uniform: Valuation Uncertainty)
+# Range: 10x to 14x
+multiple_dist = np.random.uniform(10, 14, SIMULATIONS)
 
-# --- 3. THE ENGINE (CALCULATIONS) ---
-# Example: Simple Future Value -> Present Value
-base_revenue = 1000 # Million
-future_revenue = base_revenue * (1 + growth_rate)
-future_ebitda = future_revenue * margin
-future_ev = future_ebitda * multiple
+# WACC (Normal: Interest Rate Risk)
+wacc_dist = np.random.normal(0.10, 0.005, SIMULATIONS)
 
-# Discounting
-WACC = 0.10
-years = 1
-pv_ev = future_ev / ((1 + WACC) ** years)
+# --- 3. THE ENGINE (VECTORIZED DCF) ---
+# Base Year Data
+base_revenue = 1000.0  # Million
+
+# Future Year 1 (Simplified for Template - Expand for N-Stage)
+# FCF = Rev * Margin * (1 - Tax) - Reinvestment
+# For 'Target DCF', we project to Year N and discount back.
+YEARS_TO_TARGET = 5
+
+future_revenue = base_revenue * ((1 + growth_dist) ** YEARS_TO_TARGET)
+future_ebitda = future_revenue * margin_dist
+future_ev = future_ebitda * multiple_dist
+
+# Discounting to Present
+discount_factor = (1 + wacc_dist) ** YEARS_TO_TARGET
+pv_enterprise_value = future_ev / discount_factor
 
 # Bridge to Equity
-net_debt = 200 # Million
-equity_value = pv_ev - net_debt
+net_debt = 200.0  # Million
+equity_value = pv_enterprise_value - net_debt
+fair_value_dist = equity_value / SHARES_OUT
 
-# Per Share
-fair_value_per_share = equity_value / SHARES_OUT
+# --- 4. THE SYNTHESIS (STATISTICS) ---
+mean_val = np.mean(fair_value_dist)
+p10 = np.percentile(fair_value_dist, 10)  # Bear Case
+p50 = np.median(fair_value_dist)          # Base Case
+p90 = np.percentile(fair_value_dist, 90)  # Bull Case
 
-# --- 4. ANALYZE THE KILL (STATISTICS) ---
-mean_val = np.mean(fair_value_per_share)
-p10 = np.percentile(fair_value_per_share, 10) # Bear
-p50 = np.median(fair_value_per_share)         # Base
-p90 = np.percentile(fair_value_per_share, 90) # Bull
-prob_profit = np.mean(fair_value_per_share > CURRENT_PRICE)
+# The Wolf's Edge: Probability of Profit
+# % of simulations where Fair Value > Current Price
+prob_profit = np.mean(fair_value_dist > CURRENT_PRICE)
+
+# Expected Return (Kelly Input)
 upside_mean = (mean_val - CURRENT_PRICE) / CURRENT_PRICE
 
-# --- 5. REPORT (STDOUT) ---
-print(f"🐺 SIMULATION REPORT [N={SIMULATIONS}]")
+# --- 5. VISUALIZATION (THE MAP) ---
+plt.figure(figsize=(12, 6))
+sns.set_style("whitegrid")
+
+# Main Histogram
+sns.histplot(fair_value_dist, bins=100, kde=True, 
+             color='#2c3e50', stat='density', alpha=0.6, edgecolor=None)
+
+# The Key Levels
+plt.axvline(CURRENT_PRICE, color='red', linestyle='--', linewidth=2.5, label=f'Price: {CURRENT_PRICE:,.2f}')
+plt.axvline(p50, color='gold', linestyle='-', linewidth=2.5, label=f'Median (P50): {p50:,.2f}')
+plt.axvline(p10, color='maroon', linestyle=':', linewidth=2, label=f'Bear (P10): {p10:,.2f}')
+plt.axvline(p90, color='green', linestyle=':', linewidth=2, label=f'Bull (P90): {p90:,.2f}')
+
+plt.title(f'🐺 ALPHAWOLF v9: {TICKER} Valuation Distribution', fontsize=14, fontweight='bold', color='#1a1a1a')
+plt.xlabel('Intrinsic Value Per Share', fontsize=11)
+plt.ylabel('Probability Density', fontsize=11)
+plt.legend(loc='upper right')
+plt.grid(axis='y', alpha=0.3)
+
+# Save high-res
+plt.savefig(f'{TICKER}_wolf_valuation.png', dpi=150)
+
+# --- 6. THE REPORT (REGEX FRIENDLY OUTPUT) ---
+# This block is parsed by the Chatbot to generate the Final Alpha Call
+print(f"\n🐺 SIMULATION REPORT [N={SIMULATIONS}]")
+print(f"Target: {TICKER}")
 print(f"Current Price: {CURRENT_PRICE:,.2f}")
 print("-" * 30)
 print(f"Mean Fair Value:   {mean_val:,.2f}")
@@ -75,23 +115,4 @@ print(f"P90 (Bull Case):   {p90:,.2f}")
 print("-" * 30)
 print(f"PROBABILITY OF PROFIT: {prob_profit:.1%}")
 print(f"Expected Upside (Mean): {upside_mean:.1%}")
-
-# --- 6. VISUALIZATION (THE CHART) ---
-plt.figure(figsize=(12, 6))
-sns.histplot(fair_value_per_share, bins=100, kde=True, color='#2c3e50', stat='density', alpha=0.6)
-
-# Annotations
-plt.axvline(CURRENT_PRICE, color='red', linestyle='--', linewidth=2, label=f'Price ({CURRENT_PRICE})')
-plt.axvline(p50, color='gold', linestyle='-', linewidth=2, label=f'Median ({p50:.2f})')
-plt.axvline(p10, color='maroon', linestyle=':', linewidth=2, label=f'P10 Bear ({p10:.2f})')
-plt.axvline(p90, color='green', linestyle=':', linewidth=2, label=f'P90 Bull ({p90:.2f})')
-
-plt.title('Valuation Distribution', fontsize=16, fontweight='bold', color='#1a1a1a')
-plt.xlabel('Fair Value Per Share', fontsize=12)
-plt.ylabel('Probability Density', fontsize=12)
-plt.legend()
-plt.grid(axis='y', alpha=0.3)
-
-# Save
-plt.savefig('valuation_dist.png')
-
+print("-" * 30)
