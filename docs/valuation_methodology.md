@@ -28,6 +28,7 @@ Before modeling, you must classify the asset. The asset's lifecycle determines t
 ### Step 2: Dissection (Sum-of-the-Parts)
 Corporations are rarely monoliths. They are collections of distinct machines.
 *   **Action:** Break the company into its constituent engines.
+*   **Reference:** [SOTP Guide](models/sotp.md)
     *   *Example:* A conglomerate = Stable Core (DCF) + High-Growth Venture (Real Option) + Real Estate (NAV).
 *   **Principle:** Value each part using the model best suited for its specific physics, then sum them up.
 
@@ -58,8 +59,9 @@ Translate the math into a tradeable signal.
 ## 🛠️ The Arsenal: Models & Methods
 
 We employ four primary "Weapons" depending on the target's nature.
+> **Full Documentation:** See `docs/models/` for detailed implementation guides.
 
-### 1. The Standard DCF (The Time Machine)
+### 1. [The Standard DCF](models/standard_dcf.md) (The Time Machine)
 *   **Use Case:** Mature, predictable companies (Phase 3).
 *   **Mechanism:** Forecast 5-10 years of cash flows, discount them back.
 *   **Key inputs:** WACC, Stable Growth Rate.
@@ -70,7 +72,7 @@ We employ four primary "Weapons" depending on the target's nature.
 *   **Formula:** $PV = \frac{\text{EBITDA}_{target} \times \text{Multiple}}{(1+r)^t}$
 *   **Why:** Avoids "false precision" of modeling the messy ramp-up phase.
 
-### 3. Real Options (The Quantum Bet)
+### 3. [Real Options](models/real_options.md) (The Quantum Bet)
 *   **Use Case:** Pre-revenue, Biotech, Exploration Mining, "Moonshots" (Phase 1).
 *   **Mechanism:** Binary outcomes. The asset is worth \$0 (Failure) or \$X Billion (Success).
 *   **Formula:** $\text{Value} = (\text{Payoff} \times P_{success}) + (0 \times P_{fail})$.
@@ -80,6 +82,11 @@ We employ four primary "Weapons" depending on the target's nature.
 *   **Use Case:** Sanity check for all models.
 *   **Mechanism:** Compare Multiples (PE, EV/EBITDA, EV/Sales) to peers.
 *   **Principle:** Intrinsic value (DCF) is what it *should* be worth. Relative value is what the market *is paying* for similar assets. The gap is the Alpha.
+
+### 5. Special Situations
+*   **[Distressed / Liquidation](models/distressed.md):** For bankruptcies and turnarounds.
+*   **[NAV / Resources](models/nav_resources.md):** For miners, banks, and real estate.
+*   **[Sum-of-the-Parts (SOTP)](models/sotp.md):** For conglomerates.
 
 ---
 
@@ -103,9 +110,9 @@ Always align the model with the asset's lifecycle phase.
 
 | Lifecycle Phase | Characteristics | Primary Weapon | Key Levers |
 | :--- | :--- | :--- | :--- |
-| **Phase 1: Start-up** | No Revenue, High Cash Burn, "Idea" | **Real Options** | TAM, Prob(Success) |
+| **Phase 1: Start-up** | No Revenue, High Cash Burn, "Idea" | **[Real Options](models/real_options.md)** | TAM, Prob(Success) |
 | **Phase 2: Growth** | High Revenue Growth, Negative Profit | **Target DCF (10Y)** | Rev Growth, Target Margin |
-| **Phase 3: Mature** | Steady Growth (GDP+), Profitable | **Standard DCF** | WACC, Reinvestment |
-| **Phase 4: Decline** | Falling Rev, High Debt, Distress | **Liquidation / Distressed DCF** | Asset Value, Burn Rate |
+| **Phase 3: Mature** | Steady Growth (GDP+), Profitable | **[Standard DCF](models/standard_dcf.md)** | WACC, Reinvestment |
+| **Phase 4: Decline** | Falling Rev, High Debt, Distress | **[Distressed](models/distressed.md)** | Asset Value, Burn Rate |
 | **Special: Banks** | Money is the inventory | **Dividend Discount (DDM)** | ROE, Book Value |
-| **Special: Resources** | Finite Life, Commodity Price risk | **NAV (Net Asset Value)** | Commodity Price, Reserves |
+| **Special: Resources** | Finite Life, Commodity Price risk | **[NAV](models/nav_resources.md)** | Commodity Price, Reserves |
