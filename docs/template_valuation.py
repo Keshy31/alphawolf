@@ -5,7 +5,7 @@ import seaborn as sns
 import sys
 import io
 
-# 🐺 ALPHAWOLF v9 CORE ENGINE
+# 🐺 ALPHAWOLF v12 CORE ENGINE
 # ---------------------------------------------------------
 # STANDARDS:
 # 1. Reproducibility: Seed 42
@@ -93,7 +93,7 @@ plt.axvline(p50, color='gold', linestyle='-', linewidth=2.5, label=f'Median (P50
 plt.axvline(p10, color='maroon', linestyle=':', linewidth=2, label=f'Bear (P10): {p10:,.2f}')
 plt.axvline(p90, color='green', linestyle=':', linewidth=2, label=f'Bull (P90): {p90:,.2f}')
 
-plt.title(f'🐺 ALPHAWOLF v9: {TICKER} Valuation Distribution', fontsize=14, fontweight='bold', color='#1a1a1a')
+plt.title(f'🐺 ALPHAWOLF v12: {TICKER} Valuation Distribution', fontsize=14, fontweight='bold', color='#1a1a1a')
 plt.xlabel('Intrinsic Value Per Share', fontsize=11)
 plt.ylabel('Probability Density', fontsize=11)
 plt.legend(loc='upper right')
